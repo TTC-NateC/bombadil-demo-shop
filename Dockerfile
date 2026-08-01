@@ -21,6 +21,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# The datasource block reads env("DATABASE_URL"); nothing connects at build
+# time, but the variable must resolve.
+ENV DATABASE_URL="file:/tmp/build.db"
 # public/ must exist or the runner's COPY fails outright.
 RUN mkdir -p public && npx prisma generate && npm run build
 
@@ -32,11 +35,14 @@ RUN mkdir -p public && npx prisma generate && npm run build
 # deps, and copy the tree in.
 FROM node:20-slim AS runtimedeps
 WORKDIR /rt
-COPY package.json ./
-RUN npm init -y >/dev/null \
+# Read the versions BEFORE npm init, which would otherwise overwrite this file
+# with a default and silently drop the pins.
+COPY package.json /tmp/app-package.json
+RUN PRISMA_VERSION="$(node -p "require('/tmp/app-package.json').dependencies.prisma")" \
+ && TSX_VERSION="$(node -p "require('/tmp/app-package.json').dependencies.tsx")" \
+ && npm init -y >/dev/null \
  && npm install --omit=dev --no-audit --no-fund \
-      "prisma@$(node -p "require('/rt/package.json').dependencies?.prisma || '^6.1.0'")" \
-      tsx@^4.19.2
+      "prisma@${PRISMA_VERSION}" "tsx@${TSX_VERSION}"
 
 # ---- runner -----------------------------------------------------------------
 FROM node:20-slim AS runner
@@ -44,6 +50,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# Defaults so `docker run -p 3000:3000 -v cartdata:/data demo-cart` works with
+# no env beyond ADMIN_API_KEY (specs/01 §10). .env is .dockerignore'd, so
+# nothing else supplies these.
+ENV DATABASE_URL="file:/data/app.db"
+ENV UPLOAD_DIR="/data/uploads"
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
