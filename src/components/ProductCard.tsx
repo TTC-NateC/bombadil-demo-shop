@@ -58,7 +58,12 @@ export function ProductCard({
           {formatCents(product.priceCents, product.currency)}
         </p>
         <div className="mt-auto pt-2">
-          <AddToCartButton productId={product.id} testId={addTestId} className="w-full" />
+          <AddToCartButton
+            productId={product.id}
+            productName={product.name}
+            testId={addTestId}
+            className="w-full"
+          />
         </div>
       </div>
     </div>

@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { mutateCart } from "./cart-events";
+import { toast } from "./Toaster";
 
 export function AddToCartButton({
   productId,
+  productName,
   quantity = 1,
   label = "Add to cart",
   testId = "product-card-add",
   className = "",
 }: {
   productId: string;
+  productName: string;
   quantity?: number;
   label?: string;
   testId?: string;
@@ -20,10 +23,25 @@ export function AddToCartButton({
 
   async function add() {
     setBusy(true);
-    await mutateCart("/api/cart/items", {
+    const { ok } = await mutateCart("/api/cart/items", {
       method: "POST",
       body: JSON.stringify({ productId, quantity }),
     });
+
+    // Fired on the OUTCOME, after the API responds — never on the click, or it
+    // would lie whenever the server disagreed (specs/03 §4).
+    toast(
+      ok
+        ? {
+            variant: "success",
+            message:
+              quantity > 1
+                ? `Added ${quantity} × "${productName}" to your cart`
+                : `Added "${productName}" to your cart`,
+          }
+        : { variant: "warning", message: "Something went wrong — please try again" },
+    );
+
     setBusy(false);
   }
 

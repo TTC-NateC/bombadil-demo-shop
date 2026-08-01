@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { AddToCartButton } from "./AddToCartButton";
 
-export function QuantityAddToCart({ productId }: { productId: string }) {
+export function QuantityAddToCart({
+  productId,
+  productName,
+}: {
+  productId: string;
+  productName: string;
+}) {
   const [quantity, setQuantity] = useState(1);
 
   return (
@@ -31,7 +37,12 @@ export function QuantityAddToCart({ productId }: { productId: string }) {
           +
         </button>
       </div>
-      <AddToCartButton productId={productId} quantity={quantity} testId="pdp-add-to-cart" />
+      <AddToCartButton
+        productId={productId}
+        productName={productName}
+        quantity={quantity}
+        testId="pdp-add-to-cart"
+      />
     </div>
   );
 }

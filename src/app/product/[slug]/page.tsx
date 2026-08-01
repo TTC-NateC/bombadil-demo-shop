@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { QuantityAddToCart } from "@/components/QuantityAddToCart";
+import { RecommendationStrip } from "@/components/RecommendationStrip";
 import { prisma } from "@/lib/db";
 import { formatCents } from "@/lib/money";
 
@@ -38,9 +39,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           {product.description && (
             <p className="text-neutral-600 dark:text-neutral-400">{product.description}</p>
           )}
-          <QuantityAddToCart productId={product.id} />
+          <QuantityAddToCart productId={product.id} productName={product.name} />
         </div>
       </div>
+
+      <RecommendationStrip
+        endpoint={`/api/products/${product.slug}/recommendations`}
+        title="You might also like"
+      />
     </div>
   );
 }
