@@ -33,7 +33,7 @@
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Framework | **Next.js 14+ (App Router)** | Single app serves UI + API routes. |
+| Framework | **Next.js 15 (App Router)** | Single app serves UI + API routes. `cookies()` and route `params` are **async** — see §7.5. |
 | Language | **TypeScript** (strict) | Shared types across UI, API, and engine. |
 | Styling | **Tailwind CSS + shadcn/ui** | Fast, consistent, agent-friendly components. |
 | Data | **SQLite + Prisma** | File-based DB inside the container. No external service. |
@@ -126,13 +126,13 @@ model Coupon {
   id            String   @id @default(cuid())
   code          String   @unique          // stored uppercase; input uppercased at apply time
   description   String?
-  type          CouponType
+  type          String                     // CouponType — see §4.3
   // value semantics depend on type:
   //  PERCENT      -> value = basis points off (e.g. 1000 = 10%)
   //  FIXED        -> value = cents off
   //  FREE_SHIPPING-> value ignored
   value         Int      @default(0)
-  targetType    TargetType @default(CART) // CART | CATEGORY | PRODUCT
+  targetType    String   @default("CART")  // TargetType — see §4.3
   targetValue   String?                    // category name or productId
   minSubtotalCents Int?
   maxDiscountCents Int?
@@ -144,9 +144,6 @@ model Coupon {
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 }
-
-enum CouponType { PERCENT FIXED FREE_SHIPPING }
-enum TargetType { CART CATEGORY PRODUCT }
 
 model Cart {
   id        String     @id @default(cuid())
@@ -177,6 +174,25 @@ The snapshot is captured on `POST /api/cart/items` when the row is created. Quan
 
 ### 4.2 Why `onDelete: Cascade` on `CartItem.product`
 Prisma's default for a required relation is `Restrict`. Without the explicit cascade, deleting a product that sits in any cart raises `P2003`, which would break slice 2's `DELETE /api/products/[id]` and the staging script's `--reset` precisely when someone wants to reset — right after a demo. A deleted product silently disappears from live carts; acceptable for a demo.
+
+### 4.3 Why `String` instead of `enum`
+**Prisma's SQLite connector does not support `enum`.** Declaring one fails schema validation, so `prisma generate` never runs and nothing downstream of it builds. `type` and `targetType` are therefore `String` columns, constrained in TypeScript and at the API boundary instead:
+
+```ts
+// src/lib/pricing/types.ts
+export const COUPON_TYPES = ['PERCENT', 'FIXED', 'FREE_SHIPPING'] as const;
+export const TARGET_TYPES = ['CART', 'CATEGORY', 'PRODUCT'] as const;
+export type CouponType = (typeof COUPON_TYPES)[number];
+export type TargetType = (typeof TARGET_TYPES)[number];
+
+// Zod schemas derive from the same constants — one source of truth:
+export const couponTypeSchema = z.enum(COUPON_TYPES);
+export const targetTypeSchema = z.enum(TARGET_TYPES);
+```
+
+Every write path (the seed, and slice 2's admin endpoints) validates through these schemas; every read path narrows through them before the value reaches the engine. The engine's signatures use the TS union types, so an invalid string cannot reach `priceWithCouponSet` without failing validation first.
+
+Run `npx prisma validate` as the first check of Phase 1 — it catches this class of problem in seconds.
 
 ---
 
@@ -460,6 +476,30 @@ Cart is resolved from the `cartId` cookie; if none, one is created and the cooki
 
 Abandoned `Cart` rows are never reaped; they are cheap and a demo database is disposable.
 
+### 7.5 Next.js 15 async APIs
+
+Pin **Next.js 15**. Three of its changes touch code in this slice directly, and all three are silent type errors rather than runtime surprises — so get them right the first time rather than discovering them across every route:
+
+```ts
+// cookies() returns a Promise — every cart helper is async
+const jar      = await cookies();
+const cartId   = jar.get('cartId')?.value;
+
+// Route handler params is a Promise
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+}
+
+// Page/layout params and searchParams are Promises too
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+}
+```
+
+Also: **`fetch` and route-handler `GET` are no longer cached by default** in 15. That is the behaviour this app wants everywhere — cart and catalog reads must never serve stale data — so it needs no opt-out. Do not add caching back without a reason.
+
+Next 15 brings **React 19**. `shadcn/ui` supports it, but the initializer may raise peer-dependency prompts; take the documented resolution rather than hand-editing `package.json`.
+
 ---
 
 ## 8. UI Specification
@@ -508,6 +548,7 @@ Stable selectors for §12. Agents may extend, not rename.
 
 `prisma/seed.ts`, idempotent (upsert by slug/code) so restarts don't duplicate:
 - ~12–20 products across 3–4 categories (Apparel, Electronics, Home, Accessories) with realistic prices. `imageUrl` may reference external URLs or be null in this slice.
+- **At least 3 products carry curated `relatedIds`** (2–4 peers each), so slice 3's manual-override layer — the first and highest-priority rule in its §2.1, and the only one that shows curation rather than a heuristic — is demonstrable without slice 2. The rest rely on category and fallback. This is also the only thing in slice 1 that exercises the JSON-array column.
 - Coupons exercising every code path:
   - `SAVE10` — PERCENT, 10%, whole cart, stackable.
   - `TAKE15` — FIXED, $15 off, `minSubtotalCents = 5000`, stackable.
@@ -577,6 +618,7 @@ docker run -p 3000:3000 -v cartdata:/data demo-cart
 - `@playwright/test`, specs in `e2e/`, config with a **`webServer`** block that builds and starts the app against a throwaway SQLite DB, then tears it down — `npm run test:e2e` is one command.
 - Seed a known catalog/coupon set before the run (`globalSetup`) so assertions on names, prices and discounts are stable. The price snapshot (§4.1) guarantees a cart's arithmetic cannot move mid-test.
 - Headless Chromium minimum. Trace/screenshot/video on failure. Each spec isolated with a fresh `context` (fresh cart cookie).
+- **Run `workers: 1`.** SQLite is single-writer: parallel Playwright workers hitting one database file produce `SQLITE_BUSY` errors that surface as intermittent, plausible-looking pricing and cart bugs. If the suite later becomes slow enough to matter, the fix is WAL mode plus a busy timeout — **not** raising the worker count.
 - Target `data-testid` (§8.5), not CSS or text.
 
 ### 12.2 Required scenarios

@@ -168,15 +168,16 @@ Dead simple for a single container — no S3, no external CDN.
 A **single-segment** dynamic route. Not a catch-all.
 
 ```ts
-// src/app/uploads/[filename]/route.ts
+// src/app/uploads/[filename]/route.ts   — Next 15: params is a Promise (slice 1 §7.5)
 const NAME = /^[a-z0-9]+\.(png|jpe?g|webp|gif)$/;
 const MIME = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg',
                webp:'image/webp', gif:'image/gif' };
 
-if (!NAME.test(params.filename)) return notFound();
+const { filename } = await params;
+if (!NAME.test(filename)) return notFound();
 
 const root     = path.resolve(process.env.UPLOAD_DIR!);
-const resolved = path.resolve(root, params.filename);
+const resolved = path.resolve(root, filename);
 if (!resolved.startsWith(root + path.sep)) return notFound();   // defence in depth
 
 // Content-Type from the extension via MIME — never from the request.
