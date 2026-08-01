@@ -1,0 +1,7 @@
+[
+  { "type": "PERCENT", "valueRange": [500, 3000], "stackable": true },
+  { "type": "FIXED", "valueRange": [500, 2000], "minSubtotalRange": [3000, 8000] },
+  { "type": "FREE_SHIPPING" },
+  { "type": "PERCENT", "value": 2500, "stackable": false, "maxDiscountCents": 3000 },
+  { "type": "PERCENT", "valueRange": [1000, 2000], "targetType": "CATEGORY" }
+]

@@ -101,3 +101,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local upload dir + throwaway test databases
+uploads-dev/
+prisma/*.db
+prisma/*.db-journal
