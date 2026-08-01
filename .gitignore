@@ -1,0 +1,62 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# production / runtime data
+/data/
+uploads/
+
+# prisma — local SQLite databases and generated client
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+prisma/*.db
+prisma/*.db-journal
+prisma/migrations/dev.db*
+/src/generated/prisma
+
+# env files (keep .env.example tracked)
+.env
+.env*.local
+.env.development
+.env.production
+!.env.example
+
+# testing
+coverage/
+/playwright-report/
+/playwright/.cache/
+/blob-report/
+/test-results/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# claude code local state
+.claude/settings.local.json
+
+# misc
+*.tsbuildinfo
+.vercel
+.turbo
