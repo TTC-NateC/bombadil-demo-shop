@@ -1,3 +1,4 @@
+import { PageBand } from "@/components/PageBand";
 import { ProductCard } from "@/components/ProductCard";
 import { prisma } from "@/lib/db";
 
@@ -22,7 +23,7 @@ export default async function CatalogPage({
   ).sort();
 
   return (
-    <div className="space-y-6">
+    <PageBand className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <FilterChip href="/" active={!category} label="All" />
         {categories.map((name) => (
@@ -40,7 +41,7 @@ export default async function CatalogPage({
           <ProductCard key={product.id} product={product} />
         ))}
       </div>
-    </div>
+    </PageBand>
   );
 }
 
@@ -48,10 +49,10 @@ function FilterChip({ href, active, label }: { href: string; active: boolean; la
   return (
     <a
       href={href}
-      className={`rounded-full border px-3 py-1 text-sm transition ${
+      className={`rounded-full border-2 px-4 py-1.5 text-sm transition-colors ${
         active
-          ? "border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-neutral-900"
-          : "border-neutral-300 hover:border-neutral-500 dark:border-neutral-700"
+          ? "border-ttc-egg-blue bg-ttc-egg-blue font-medium text-ttc-dark-blue"
+          : "border-white/30 text-white hover:border-ttc-egg-blue hover:text-ttc-egg-blue"
       }`}
     >
       {label}

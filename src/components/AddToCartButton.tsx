@@ -52,7 +52,7 @@ export function AddToCartButton({
       data-product-id={productId}
       onClick={add}
       disabled={busy}
-      className={`rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 ${className}`}
+      className={`rounded-full bg-ttc-egg-blue px-4 py-2 text-sm font-medium text-ttc-dark-blue transition-colors hover:bg-white disabled:opacity-50 ${className}`}
     >
       {busy ? "Adding…" : label}
     </button>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { mutateCart, notifyCartUpdated } from "@/components/cart-events";
+import { PageBand } from "@/components/PageBand";
 import { PriceBreakdown } from "@/components/PriceBreakdown";
 import { RecommendationStrip } from "@/components/RecommendationStrip";
 import { toast } from "@/components/Toaster";
@@ -84,23 +85,31 @@ export default function CartPage() {
     return next;
   }
 
-  if (!priced) return <p className="text-neutral-500">Loading cart…</p>;
+  if (!priced)
+    return (
+      <PageBand>
+        <p className="text-white/70">Loading cart…</p>
+      </PageBand>
+    );
 
   if (priced.items.length === 0) {
     return (
-      <div className="space-y-4 py-12 text-center">
-        <p className="text-lg">Your cart is empty.</p>
-        <Link href="/" className="inline-block underline">
+      <PageBand className="space-y-4 py-12 text-center">
+        <p className="text-lg text-white">Your cart is empty.</p>
+        <Link
+          href="/"
+          className="inline-block rounded-full bg-ttc-egg-blue px-6 py-3 font-medium text-ttc-dark-blue transition-colors hover:bg-white"
+        >
           Browse the catalog
         </Link>
-      </div>
+      </PageBand>
     );
   }
 
   const cartProductIds = priced.items.map((i) => i.productId).join(",");
 
   return (
-    <div className="space-y-10">
+    <PageBand className="space-y-10">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_20rem]">
         {/* ---- line items ---- */}
         <div className="space-y-4">
@@ -111,25 +120,25 @@ export default function CartPage() {
                 key={item.productId}
                 data-testid="cart-line-item"
                 data-product-id={item.productId}
-                className="flex items-center gap-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800"
+                className="flex items-center gap-4 rounded-xl border-2 border-white/20 bg-white/10 p-4 transition-colors hover:border-ttc-egg-blue"
               >
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-neutral-100 dark:bg-neutral-900">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-white/15">
                   {product?.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="text-[10px] uppercase text-neutral-400">No image</span>
+                    <span className="text-[10px] uppercase text-white/60">No image</span>
                   )}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{item.name}</p>
-                  <p className="tabular-nums text-sm text-neutral-500">
+                  <p className="truncate font-medium text-white">{item.name}</p>
+                  <p className="tabular-nums text-sm text-white/70">
                     {formatCents(item.unitPriceCents, priced.currency)} each
                   </p>
                 </div>
 
-                <div className="flex items-center rounded-md border border-neutral-300 dark:border-neutral-700">
+                <div className="flex items-center rounded-full border-2 border-white/30">
                   <button
                     type="button"
                     data-testid="cart-qty-decrease"
@@ -149,13 +158,13 @@ export default function CartPage() {
                             : `Updated "${item.name}" (x${next})`,
                       });
                     }}
-                    className="px-3 py-1.5 text-sm disabled:opacity-40"
+                    className="rounded-l-full px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/15 hover:text-ttc-egg-blue disabled:opacity-40"
                   >
                     −
                   </button>
                   <span
                     data-testid="cart-qty-input"
-                    className="w-8 text-center tabular-nums text-sm"
+                    className="w-8 text-center tabular-nums text-sm text-white"
                   >
                     {item.quantity}
                   </span>
@@ -172,13 +181,13 @@ export default function CartPage() {
                       });
                       toast({ variant: "info", message: `Updated "${item.name}" (x${next})` });
                     }}
-                    className="px-3 py-1.5 text-sm disabled:opacity-40"
+                    className="rounded-r-full px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/15 hover:text-ttc-egg-blue disabled:opacity-40"
                   >
                     +
                   </button>
                 </div>
 
-                <p className="w-20 text-right tabular-nums text-sm font-medium">
+                <p className="w-20 text-right tabular-nums text-sm font-medium text-white">
                   {formatCents(item.lineTotalCents, priced.currency)}
                 </p>
 
@@ -207,7 +216,7 @@ export default function CartPage() {
                       },
                     });
                   }}
-                  className="text-sm text-neutral-500 underline disabled:opacity-40"
+                  className="text-sm text-white/70 underline underline-offset-2 transition-colors hover:text-ttc-egg-blue disabled:opacity-40"
                 >
                   Remove
                 </button>
@@ -218,8 +227,8 @@ export default function CartPage() {
 
         {/* ---- coupons + breakdown ---- */}
         <div className="space-y-4">
-          <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          <div className="rounded-2xl border-2 border-white/20 bg-white/10 p-5">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-ttc-egg-blue">
               Coupon
             </h2>
 
@@ -242,20 +251,20 @@ export default function CartPage() {
                 onChange={(event) => setCode(event.target.value)}
                 placeholder="Enter a code"
                 aria-label="Coupon code"
-                className="min-w-0 flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="min-w-0 flex-1 rounded-full border-2 border-white/30 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/50 focus:border-ttc-egg-blue focus:outline-none"
               />
               <button
                 type="submit"
                 data-testid="coupon-apply"
                 disabled={busy}
-                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+                className="shrink-0 rounded-full bg-ttc-egg-blue px-5 py-2 text-sm font-medium text-ttc-dark-blue transition-colors hover:bg-white disabled:opacity-50"
               >
                 Apply
               </button>
             </form>
 
             {couponError && (
-              <p data-testid="coupon-error" className="mt-2 text-sm text-red-600 dark:text-red-400">
+              <p data-testid="coupon-error" className="mt-2 text-sm text-ttc-red-300">
                 {couponError}
               </p>
             )}
@@ -268,7 +277,7 @@ export default function CartPage() {
                   key={line.couponCode}
                   data-testid="coupon-chip"
                   data-code={line.couponCode}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ttc-dark-blue px-3 py-1 text-xs font-medium text-white"
                 >
                   {line.couponCode}
                   <button
@@ -284,7 +293,7 @@ export default function CartPage() {
                       );
                       toast({ variant: "info", message: `Coupon ${line.couponCode} removed` });
                     }}
-                    className="text-emerald-700 disabled:opacity-40 dark:text-emerald-400"
+                    className="text-ttc-egg-blue hover:text-ttc-red-300 disabled:opacity-40"
                   >
                     ×
                   </button>
@@ -302,6 +311,6 @@ export default function CartPage() {
         title="Add to your order"
         refreshOnCartChange
       />
-    </div>
+    </PageBand>
   );
 }

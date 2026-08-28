@@ -115,6 +115,7 @@ function ToastCard({
     <div
       role="status"
       data-testid="toast"
+      data-toast-id={item.id}
       data-variant={item.variant}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

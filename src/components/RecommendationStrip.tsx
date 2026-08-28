@@ -51,7 +51,7 @@ export function RecommendationStrip({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">{title}</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-ttc-egg-blue">{title}</h2>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {products.map((product) => (
           <ProductCard

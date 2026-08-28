@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:bombadil": "bombadil browser test http://localhost:3000 bombadil/spec.ts --time-limit 5m --exit-on-violation",
     "stage": "tsx scripts/stage-data.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -28,6 +29,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@antithesishq/bombadil": "^0.6.1",
     "@playwright/test": "^1.49.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
