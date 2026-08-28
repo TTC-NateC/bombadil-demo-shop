@@ -143,6 +143,34 @@ properties in [bombadil/spec.ts](bombadil/spec.ts) against every state it
 captures. Where the Playwright suite asserts that *a* scripted scenario works,
 these properties must hold *whatever* the shopper does.
 
+On top of Bombadil's own exploration, the spec adds generators that bias runs
+towards the cart and coupon flows — adding from the catalog, removing single
+lines, draining the cart to empty, and entering both real and made-up coupon
+codes — because random clicking reaches those states slowly. The weights matter:
+left even, the cart fills faster than it drains and never reaches empty.
+`cartLineCount` and `appliedCouponCodes` in the trace are the quickest way to
+see whether a run actually got there.
+
+The coupon generators read the real codes from `GET /api/coupons`, which is
+admin-gated, so pass the key — otherwise they stay silent and the rest of the
+run is unaffected:
+
+```bash
+bombadil browser test http://localhost:3000 bombadil/spec.ts \
+  --header x-admin-key="$ADMIN_API_KEY" --time-limit 5m
+```
+
+The made-up codes are generated at random and then checked against that list
+before being typed, so a rejection is always a rejection of a code the shop
+genuinely does not have. Without the list there is nothing to check against, so
+the spec declines to type "invalid" codes it cannot vouch for.
+
+One deliberate omission: the spec composes Bombadil's default generators by hand
+and leaves out `inputs`, which types long random unicode strings one character
+at a time. A single such action was measured at 10.2 s, and no state is captured
+while an action runs — long enough to make any bounded-time property (like the
+toast one) report violations for toasts that dismissed perfectly well.
+
 Unlike Playwright, Bombadil does not start the server for you:
 
 ```bash
