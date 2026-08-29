@@ -13,6 +13,26 @@ test.describe("cart", () => {
     await expect(page.getByTestId("cart-line-item")).toHaveCount(1);
   });
 
+  test("the header subtotal tracks the cart on every page", async ({ page, request }) => {
+    const beanie = await productIdBySlug(request, "wool-beanie"); // 2400
+    await addToCart(page, beanie, 2);
+
+    // Catalog, product detail and cart all render the same header figure, and it
+    // matches the breakdown row it is sourced from (§8.1).
+    await page.goto("/");
+    await expect(page.getByTestId("cart-badge-subtotal")).toHaveText("$48.00");
+
+    await page.goto("/product/wool-beanie");
+    await expect(page.getByTestId("cart-badge-subtotal")).toHaveText("$48.00");
+
+    await page.goto("/cart");
+    await expect(page.getByTestId("cart-badge-subtotal")).toHaveText("$48.00");
+    await expect(page.getByTestId("breakdown-subtotal")).toHaveText("$48.00");
+
+    await page.getByTestId("cart-qty-increase").click();
+    await expect(page.getByTestId("cart-badge-subtotal")).toHaveText("$72.00");
+  });
+
   test("quantity steppers update the line and the breakdown", async ({ page, request }) => {
     const beanie = await productIdBySlug(request, "wool-beanie"); // 2400
     await addToCart(page, beanie, 1);

@@ -510,7 +510,14 @@ Three screens, shadcn/ui + Tailwind.
 - Responsive product grid (card: image, name, price, category badge, "Add to cart").
 - Products with no `imageUrl` render a placeholder.
 - Optional category filter chips.
-- Cart badge in the header showing item count; links to `/cart`.
+- Cart badge in the header showing item count **and the running item subtotal**;
+  links to `/cart`. It lives in the root layout, so it renders on every page.
+  The subtotal is `PricedCart.subtotalCents` rendered verbatim — the same figure
+  as the cart's `breakdown-subtotal` row, so the header and the breakdown can
+  never disagree. It is pre-discount and pre-tax by design: the header does not
+  restate `totalCents`, because deriving an items-after-discount figure would
+  mean computing money on the client (§8.4). The subtotal is omitted until the
+  first `/api/cart` read resolves, so no placeholder amount is ever shown.
 
 ### 8.2 Product detail (`/product/[slug]`)
 - Larger image, description, price, quantity selector, "Add to cart".
@@ -537,7 +544,7 @@ Three screens, shadcn/ui + Tailwind.
 
 ### 8.5 Test hooks (`data-testid`)
 Stable selectors for §12. Agents may extend, not rename.
-- `product-card`, `product-card-add`, `cart-badge`
+- `product-card`, `product-card-add`, `cart-badge` (count only), `cart-badge-subtotal`
 - `cart-line-item` (with `data-product-id`), `cart-qty-input`, `cart-qty-increase`, `cart-qty-decrease`, `cart-item-remove`
 - `coupon-input`, `coupon-apply`, `coupon-chip` (with `data-code`), `coupon-remove`, `coupon-error`
 - `breakdown-subtotal`, `breakdown-discount` (one per line, with `data-code`), `breakdown-shipping`, `breakdown-tax`, `breakdown-total`
@@ -623,7 +630,7 @@ docker run -p 3000:3000 -v cartdata:/data demo-cart
 
 ### 12.2 Required scenarios
 - **Catalog & navigation:** catalog renders seeded products with prices; clicking a card opens the detail page.
-- **Add to cart:** cart badge increments; item appears in the cart.
+- **Add to cart:** cart badge increments and its subtotal rises; item appears in the cart.
 - **Quantity & remove:** increase/decrease updates the line and the breakdown; remove empties the line.
 - **Breakdown correctness:** for the carts in worked examples A, B and C, assert the rendered subtotal, each discount line, shipping, tax and total against the **literal expected cents** from §5.7 — not against numbers recomputed in the test.
 - **Coupons — accepted:** apply `SAVE10` → a discount line appears and the total drops correctly; removing it reverts totals.
