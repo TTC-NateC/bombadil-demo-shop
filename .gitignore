@@ -29,7 +29,7 @@ prisma/migrations/dev.db*
 .env*.local
 .env.development
 .env.production
-!.env.example
+
 
 # testing
 coverage/
