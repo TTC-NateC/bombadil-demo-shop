@@ -104,5 +104,6 @@ next-env.d.ts
 
 # local upload dir + throwaway test databases
 uploads-dev/
+e2e-uploads/
 prisma/*.db
 prisma/*.db-journal
