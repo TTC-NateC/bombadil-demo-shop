@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/*
+ * TTC Global brand palette, lifted from the :root block of
+ * ttcglobal.com/dist/assets/main-*.css so the demo shop matches the marketing site.
+ */
+@theme {
+  --color-ttc-navy-900: #060e1d;
+  --color-ttc-navy-800: #081225;
+  --color-ttc-navy-700: #0b1731;
+  --color-ttc-navy-600: #0e1d3e;
+  --color-ttc-navy: #122752;
+  --color-ttc-navy-400: #385184;
+  --color-ttc-navy-300: #7086b4;
+  --color-ttc-navy-200: #b6bcc9;
+  --color-ttc-navy-100: #dbdfe5;
+  --color-ttc-navy-50: #e7e9ee;
+
+  --color-ttc-red-900: #561519;
+  --color-ttc-red-800: #6f1b20;
+  --color-ttc-red-700: #94242b;
+  --color-ttc-red-600: #b92d35;
+  --color-ttc-red: #f63c47;
+  --color-ttc-red-400: #fe616a;
+  --color-ttc-red-300: #ff8990;
+  --color-ttc-red-200: #fcc3c6;
+  --color-ttc-red-100: #fee2e3;
+  --color-ttc-red-50: #feeced;
+
+  --color-ttc-grey-900: #1f1f1f;
+  --color-ttc-grey-800: #292929;
+  --color-ttc-grey-700: #333333;
+  --color-ttc-grey: #474747;
+  --color-ttc-grey-500: #616161;
+  --color-ttc-grey-400: #707070;
+  --color-ttc-grey-300: #dbdbdb;
+  --color-ttc-grey-200: #e6e6e6;
+  --color-ttc-grey-100: #f0f0f0;
+  --color-ttc-grey-50: #fafafa;
+  --color-ttc-grey-25: #fcfcfc;
+
+  --color-ttc-green-900: #093e25;
+  --color-ttc-green-100: #ddf3e9;
+  --color-ttc-green-50: #e8f7f0;
+
+  /* the named brand colors ttcglobal.com uses for buttons and dark sections */
+  --color-ttc-egg-blue: #3ccdcd;
+  --color-ttc-teal: #005a6c;
+  --color-ttc-core-blue: #25415c;
+  --color-ttc-dark-blue: #0a2033;
+  --color-ttc-darken-blue: #0b1f32;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #1f1f1f;
+
+  /* Height of the sticky site header in layout.tsx (py-4 + text-lg + 1px border).
+     Full-bleed page sections subtract it to fill the rest of the viewport. */
+  --header-h: 67px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #060e1d;
+    --foreground: #e7e9ee;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

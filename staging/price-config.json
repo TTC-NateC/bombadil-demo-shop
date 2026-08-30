@@ -1,0 +1,1 @@
+{ "minCents": 1200, "maxCents": 18000, "roundTo": 99, "perCategory": { "Accessories": { "minCents": 900, "maxCents": 6000 }, "Outdoors": { "minCents": 3000, "maxCents": 24000 } } }

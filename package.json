@@ -1,0 +1,42 @@
+{
+  "name": "demo-shop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:bombadil": "bombadil browser test http://localhost:3000 bombadil/spec.ts --header x-admin-key=$ADMIN_API_KEY --time-limit 5m --exit-on-violation",
+    "stage": "tsx scripts/stage-data.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "next": "^15.5.0",
+    "prisma": "^6.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@antithesishq/bombadil": "0.7.2",
+    "@playwright/test": "^1.49.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^2.1.8"
+  }
+}
