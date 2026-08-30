@@ -12,7 +12,15 @@
  */
 
 import { always, eventually, now } from "@antithesishq/bombadil";
-import { actions, extract, weighted, type Action, type State } from "@antithesishq/bombadil/browser";
+import {
+  actions,
+  extract,
+  getFingerprint,
+  weighted,
+  type ActionTemplate,
+  type Fingerprint,
+  type State,
+} from "@antithesishq/bombadil/browser";
 import {
   clicks as clickAnything,
   navigation,
@@ -25,37 +33,11 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * How Bombadil identifies the element a click landed on — it is what the run
- * log and any violation report show you.
- *
- * Every field is required, and the shape is NOT the one the shipped types
- * describe: `@antithesishq/bombadil@0.6.1` declares `Click` as
- * `{ name, content, point }`, but the 0.6.1 binary rejects that outright with
- * `failed to convert generated action: missing field 'fingerprint'`. The
- * definition below was recovered from a trace the binary wrote itself, so it is
- * the runtime's own shape; `clicks()` casts past the stale declaration. Revisit
- * this when upgrading — if the types and the binary agree again, drop the cast.
+ * A click Bombadil can perform: how it identifies the element (the fingerprint,
+ * which is what the run log and any violation report show you) and where to
+ * put the pointer.
  */
-type Fingerprint = {
-  tag: string;
-  testId: string | null;
-  id: string | null;
-  role: string | null;
-  accessibleName: string | null;
-  href: string | null;
-  nameAttr: string | null;
-  placeholder: string | null;
-  inputType: string | null;
-  textContent: string | null;
-  structuralPath: string | null;
-};
-
 type ClickTarget = { fingerprint: Fingerprint; point: { x: number; y: number } };
-
-/** Attribute value, or null — matching how the runtime reports an absent one. */
-function attr(element: Element, name: string): string | null {
-  return element.getAttribute(name);
-}
 
 /**
  * The clickable targets matching `selector`, as click points.
@@ -82,34 +64,12 @@ function clickTargets(state: State, selector: string): ClickTarget[] {
         point.y <= state.window.innerHeight;
       if (!onScreen) return [];
 
-      const text = (element.textContent ?? "").trim();
-
-      return [
-        {
-          fingerprint: {
-            tag: element.tagName.toLowerCase(),
-            testId: attr(element, "data-testid"),
-            id: attr(element, "id"),
-            role: attr(element, "role"),
-            // The runtime reads the attribute, not the computed accessible
-            // name: a button with only text content reports null here.
-            accessibleName: attr(element, "aria-label"),
-            href: attr(element, "href"),
-            nameAttr: attr(element, "name"),
-            placeholder: attr(element, "placeholder"),
-            inputType: attr(element, "type"),
-            textContent: text.length > 0 ? text : null,
-            structuralPath: null,
-          },
-          point,
-        },
-      ];
+      return [{ fingerprint: getFingerprint(element), point }];
     });
 }
 
-/** See the `Fingerprint` note above for why this cast is here. */
-function clicks(targets: ClickTarget[]): Action[] {
-  return targets.map((target) => ({ Click: target })) as unknown as Action[];
+function clicks(targets: ClickTarget[]): ActionTemplate[] {
+  return targets.map((target) => ({ Click: target }));
 }
 
 /**
@@ -172,6 +132,9 @@ const emptyCart = actions(() =>
  * fact dismissed on schedule. The bound is not the problem — a single action
  * outlasting it is. The coupon generators below cover the one text input this
  * app has, deliberately and with a bounded delay.
+ *
+ * That measurement was taken on 0.6.1; it is worth re-timing on 0.7.x before
+ * assuming it still holds.
  *
  * Put `inputs` back (or swap the whole block for `defaultActions`) if you want
  * that unicode fuzzing, and expect timing properties to report noise.
@@ -268,13 +231,19 @@ const couponApplyTargets = extract((state) =>
   clickTargets(state, "[data-testid='coupon-apply']"),
 );
 
-/** Whether the coupon box is focused, and what is already in it. */
+/**
+ * Whether the coupon box is focused, and what is already in it — normalised
+ * the way the shop normalises it before lookup (trimmed, uppercased), so the
+ * value can be compared against the applied chips directly.
+ */
 const couponInput = extract((state) => {
   const input = state.document.querySelector("[data-testid='coupon-input']");
   if (input === null) return null;
   return {
     focused: state.document.activeElement === input,
-    empty: (input as HTMLInputElement).value.trim().length === 0,
+    value: (input as HTMLInputElement).value.trim().toUpperCase(),
+    errorShown:
+      state.document.querySelector("[data-testid='coupon-error']") !== null,
   };
 });
 
@@ -282,15 +251,13 @@ const couponInput = extract((state) => {
  * `TypeText` types into whatever is focused — there is no target on the action
  * — so entering a coupon is three steps, not one: focus the box, type, submit.
  *
- * The text is not a literal either. `text` is a tagged union of *generators*
- * (`Text`, `Email`, `Regexp`, `CharSet`), so a plain string is rejected with
- * `invalid type: string, expected f64` — `Text` wants a length. A `Regexp` of
- * an escaped literal is how you pin an exact string.
+ * The text is a `StringGenerator`, not a literal: Bombadil generates the string
+ * from `Email`, `{ Text: length }`, `{ CharSet }` or `{ Regexp }`. A `Regexp`
+ * of an escaped literal is how you pin one exact string — the pattern matches
+ * only itself, so that is the only string it can produce.
  */
-function typeText(text: string): Action[] {
-  return [
-    { TypeText: { text: { Regexp: escapeRegExp(text) }, delayMillis: 10 } },
-  ] as unknown as Action[];
+function typeText(text: string): ActionTemplate[] {
+  return [{ TypeText: { text: { Regexp: escapeRegExp(text) }, delayMillis: 10 } }];
 }
 
 const focusCouponInput = actions(() =>
@@ -309,30 +276,42 @@ const focusCouponInput = actions(() =>
  * again would append and build a nonsense code. Navigating back to /cart
  * remounts the form empty, which is what lets this fire repeatedly.
  */
-const typeValidCoupon = actions(() =>
-  couponInput.current?.focused && couponInput.current.empty
-    ? couponPool.current.valid.flatMap((code) => typeText(code))
-    : [],
-);
-
-const typeInvalidCoupon = actions(() =>
-  couponInput.current?.focused && couponInput.current.empty
-    ? couponPool.current.invalid.flatMap((code) => typeText(code))
-    : [],
-);
-
-const applyCoupon = actions(() =>
-  couponInput.current !== null && !couponInput.current.empty
-    ? clicks(couponApplyTargets.current)
-    : [],
-);
-
 /** The coupon codes the cart is currently showing as applied. */
 const appliedCouponCodes = extract((state) =>
   Array.from(state.document.querySelectorAll("[data-testid='coupon-chip']"))
     .map((chip) => chip.getAttribute("data-code") ?? "")
     .filter((code) => code.length > 0),
 );
+
+const typeValidCoupon = actions(() =>
+  couponInput.current?.focused && couponInput.current.value === ""
+    ? couponPool.current.valid.flatMap((code) => typeText(code))
+    : [],
+);
+
+const typeInvalidCoupon = actions(() =>
+  couponInput.current?.focused && couponInput.current.value === ""
+    ? couponPool.current.invalid.flatMap((code) => typeText(code))
+    : [],
+);
+
+/**
+ * Submit what is in the box — and then get out of the way.
+ *
+ * Typing and submitting are separate actions, so without a heavy weight (below)
+ * Bombadil types a code and wanders off before pressing Apply, and the coupon
+ * never lands. The weight fixes that, but only because this generator retires
+ * itself the moment the attempt has an outcome: an accepted code becomes a
+ * chip, a rejected one raises `coupon-error` (the cart sets it on every
+ * attempt). Nothing clears the box afterwards, so without those two guards a
+ * heavily-weighted Apply would just hammer the same code forever.
+ */
+const applyCoupon = actions(() => {
+  const input = couponInput.current;
+  if (input === null || input.value === "") return [];
+  if (input.errorShown || appliedCouponCodes.current.includes(input.value)) return [];
+  return clicks(couponApplyTargets.current);
+});
 
 /**
  * The one exported generator, so the weights below are the whole story —
@@ -360,13 +339,13 @@ const appliedCouponCodes = extract((state) =>
  */
 export const shopActions = weighted([
   [4, explore],
-  [3, addToCart],
+  [4, addToCart],
   [2, removeCartItem],
-  [3, emptyCart],
-  [6, focusCouponInput],
-  [8, typeValidCoupon],
-  [8, typeInvalidCoupon],
-  [8, applyCoupon],
+  [2, emptyCart],
+  [8, focusCouponInput],
+  [14, typeValidCoupon],
+  [4, typeInvalidCoupon],
+  [24, applyCoupon],
 ]);
 
 // ---------------------------------------------------------------------------
@@ -380,7 +359,7 @@ export const shopActions = weighted([
  * state sampling land after it. A hard 5 s bound would turn every warning toast
  * into a coin flip, which reports noise rather than bugs.
  */
-const DISMISS_BOUND_SECONDS = 6;
+const DISMISS_BOUND_SECONDS = 2;
 
 /**
  * The oldest toast that is currently waiting to auto-dismiss, or null if there
@@ -409,7 +388,15 @@ const pendingToastId = extract((state) => {
     .map(Number)
     .filter((id) => Number.isInteger(id));
 
-  return ids.length > 0 ? Math.min(...ids) : null;
+  if (ids.length === 0) return null;
+
+  // Qualified by the navigation entry, because Toaster.tsx counts from a
+  // `useRef(1)` that restarts on every page load — toast 1 on the cart page and
+  // toast 1 back on the catalog are different toasts wearing the same number.
+  // Unqualified, a fresh toast that reused a departed toast's id read as the
+  // old one never leaving, and the run filled with violations for toasts that
+  // had dismissed on time.
+  return `${state.navigationHistory.current.id}:${Math.min(...ids)}`;
 });
 
 /**
@@ -466,3 +453,150 @@ const toastsMissingAnId = extract(
 );
 
 export const everyToastCarriesAnId = always(() => toastsMissingAnId.current === 0);
+
+/**
+ * Read a rendered money figure back to a number, or null if the text is not
+ * money at all (the shipping row says "FREE", and absent rows read as empty).
+ *
+ * Parsing display text rather than an API response is the point: this checks
+ * the number the shopper actually sees. `formatCents` goes through
+ * `Intl.NumberFormat`, so a negative can surface as `-$1.23` or, on some ICU
+ * data, as `($1.23)` — both are treated as negative here so the property cannot
+ * be defeated by a formatting difference.
+ */
+function parseMoney(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+
+  // U+2212 MINUS SIGN as well as ASCII hyphen — see the discount row note below.
+  const negative = /^[-−(]/.test(trimmed) || trimmed.endsWith(")");
+  const digits = trimmed.replace(/[^0-9.]/g, "");
+  if (digits.length === 0) return null;
+
+  const value = Number(digits);
+  if (!Number.isFinite(value)) return null;
+  return negative ? -value : value;
+}
+
+/**
+ * Every money figure the shopper can see, per page.
+ *
+ * `cartBadgeSubtotal` is the catalog side of this. The catalog has no order
+ * total — the only cart money outside /cart is the running subtotal in the
+ * header badge (CartBadge, §8.1), and because that badge lives in the root
+ * layout it is checked on *every* page, catalog included. The remaining figures
+ * only exist on /cart.
+ *
+ * `breakdown-discount` is deliberately absent. Discount rows render a literal
+ * `−` prefix (PriceBreakdown.tsx), so they are negative on purpose and by
+ * design; including them would fail on the first coupon applied and say nothing
+ * about the shop being wrong.
+ */
+const cartMoney = extract((state) => {
+  const read = (testId: string) => {
+    const element = state.document.querySelector(`[data-testid='${testId}']`);
+    return element === null ? null : parseMoney(element.textContent ?? "");
+  };
+
+  return {
+    cartBadgeSubtotal: read("cart-badge-subtotal"),
+    total: read("breakdown-total"),
+    subtotal: read("breakdown-subtotal"),
+    tax: read("breakdown-tax"),
+  };
+});
+
+/**
+ * specs/01 §5 — no figure the shopper is charged ever reads as negative, on the
+ * catalog (header badge) or on /cart (the breakdown).
+ *
+ * The engine already clamps: `totalCents = Math.max(0, ...)` in
+ * pricing/engine.ts, with a unit test covering a FIXED discount larger than the
+ * subtotal. What that test cannot do is enumerate coupon stacking against
+ * arbitrary carts. This is the end-to-end guard on the same invariant, over
+ * whatever combination Bombadil actually manages to assemble — and it reads the
+ * rendered text, so it also catches a clamp that holds in the engine but is
+ * lost on the way to the screen.
+ *
+ * Subtotal and tax ride along with the total: each is clamped by the same
+ * engine, a negative one is just as wrong, and naming them separately means a
+ * violation says which figure broke instead of just "the cart".
+ */
+/**
+ * A harness self-check, not a claim about the shop.
+ *
+ * `GET /api/coupons` is admin-gated, and when the key is missing or wrong the
+ * fetch 401s, the pool stays empty and both coupon generators go quiet — a run
+ * that looks perfectly healthy while covering none of the coupon flow. This
+ * turns that silence into a violation.
+ *
+ * Bounded rather than an invariant because the pool is genuinely empty for the
+ * moment between a page load and its fetch landing; 30 s is far longer than
+ * that and far shorter than any useful run.
+ */
+export const couponPoolLoads = eventually(
+  () => couponPool.current.valid.length > 0,
+).within(30, "seconds");
+
+/**
+ * Resource metrics Chrome reports per state (0.7.x `State.resources`).
+ *
+ * `dom_nodes` and `js_event_listeners` rather than heap: the heap moves with
+ * garbage collection, so it needs large limits and long windows before it
+ * stops crying wolf. These two only grow when something is actually retained.
+ */
+const domNodes = extract((state) => state.resources.dom_nodes);
+const eventListeners = extract((state) => state.resources.js_event_listeners);
+
+/**
+ * Sliding-window growth limits, sized from measurement rather than taste.
+ *
+ * Over a 926-state run this app ranges 89–5818 DOM nodes and 201–2258
+ * listeners. That swing is not a leak: Bombadil moves between an empty cart and
+ * a 16-card catalog, and each page legitimately builds what it needs. A first
+ * attempt at 4000 nodes / 600 listeners over 10 s reported 297 violations, all
+ * of them ordinary navigation.
+ *
+ * What separates the two is shape, not size. Churn *oscillates* within a band
+ * fixed by the largest page; a leak *accumulates*. So the window is long and
+ * the limits sit above the whole observed band: over a full minute, navigation
+ * keeps returning to the same range and stays inside the limit, while anything
+ * genuinely retained keeps climbing and crosses it.
+ *
+ * This is therefore a runaway detector, not a fine-grained one — it will not
+ * notice a handful of listeners leaked per mount. Re-measure and lower these if
+ * the app's page weights change materially.
+ */
+const LEAK_WINDOW_SECONDS = 60;
+const DOM_NODE_GROWTH_LIMIT = 8000;
+const LISTENER_GROWTH_LIMIT = 6000;
+
+/**
+ * `noResourceLeak` from `@antithesishq/bombadil/browser/extras/resources` would
+ * normally express these, but 0.7.2 ships `extras/resources.d.ts` in `dist`
+ * while omitting the subpath from the package `exports` map, so the import does
+ * not resolve. These are the same sliding-window shape written by hand: pin the
+ * metric at each state, then require that it stays within `baseline + limit`
+ * for the whole window — a bounded `always`, which is exactly a sliding window.
+ */
+export const noDomNodeLeak = always(() => {
+  const baseline = domNodes.current;
+  return always(() => domNodes.current - baseline <= DOM_NODE_GROWTH_LIMIT).within(
+    LEAK_WINDOW_SECONDS,
+    "seconds",
+  );
+});
+
+export const noEventListenerLeak = always(() => {
+  const baseline = eventListeners.current;
+  return always(
+    () => eventListeners.current - baseline <= LISTENER_GROWTH_LIMIT,
+  ).within(LEAK_WINDOW_SECONDS, "seconds");
+});
+
+export const cartMoneyNeverNegative = always(() => {
+  const { cartBadgeSubtotal, total, subtotal, tax } = cartMoney.current;
+  return [cartBadgeSubtotal, total, subtotal, tax].every(
+    (figure) => figure === null || figure >= 0,
+  );
+});

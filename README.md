@@ -165,6 +165,37 @@ before being typed, so a rejection is always a rejection of a code the shop
 genuinely does not have. Without the list there is nothing to check against, so
 the spec declines to type "invalid" codes it cannot vouch for.
 
+### Silencing the CDP warnings
+
+Runs emit a flood of `WS Invalid message: data did not match any variant of
+untagged enum Message`. It comes from `chromiumoxide`, the crate Bombadil uses
+to drive Chrome, whose generated protocol bindings are older than the installed
+browser. The frame that fails is `Network.requestWillBeSentExtraInfo`, carrying
+Chrome's newer `clientSecurityState.localNetworkAccessRequestPolicy` field —
+every subresource request emits one, which is why there are so many. Upgrading
+Bombadil 0.6.1 → 0.7.2 did not change it (178 vs 185 warnings in 25 s).
+
+Filter it at the log level; nothing else is lost, because the action log,
+violations and summary are printed outside the logger:
+
+```bash
+RUST_LOG="warn,chromiumoxide=error" bombadil browser test ...
+```
+
+```powershell
+$env:RUST_LOG = "warn,chromiumoxide=error"
+```
+
+### Resource-leak properties
+
+`noDomNodeLeak` and `noEventListenerLeak` bound how far Chrome's per-state
+resource counters may grow inside a sliding window. Their limits are wide on
+purpose: over a 926-state run this app ranges 89–5818 DOM nodes and 291–4300
+listeners simply by moving between an empty cart and a 16-card catalog. Churn
+oscillates within a band; a leak accumulates — so the window is long and the
+limits sit above the whole observed band. They catch a runaway, not a slow drip.
+Re-measure from `trace.jsonl` before tightening.
+
 One deliberate omission: the spec composes Bombadil's default generators by hand
 and leaves out `inputs`, which types long random unicode strings one character
 at a time. A single such action was measured at 10.2 s, and no state is captured
