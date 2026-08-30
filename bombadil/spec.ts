@@ -469,7 +469,10 @@ function parseMoney(text: string): number | null {
   if (trimmed.length === 0) return null;
 
   // U+2212 MINUS SIGN as well as ASCII hyphen — see the discount row note below.
-  const negative = /^[-−(]/.test(trimmed) || trimmed.endsWith(")");
+  // The accounting form must wrap the whole figure: a bare trailing ")" also
+  // ends "FREE (SAVE10)", and reading that as negative ten would be a violation
+  // invented out of a coupon code.
+  const negative = /^[-−]/.test(trimmed) || /^\(.*\)$/.test(trimmed);
   const digits = trimmed.replace(/[^0-9.]/g, "");
   if (digits.length === 0) return null;
 
@@ -498,11 +501,20 @@ const cartMoney = extract((state) => {
     return element === null ? null : parseMoney(element.textContent ?? "");
   };
 
+  // Shipping is a charge like the rest — engine.ts clamps it with its own
+  // `Math.max(0, ...)` — but its row is not always money: it reads "FREE" or
+  // "FREE (CODE)" when the threshold or a coupon covers it. That is the absence
+  // of a charge, not a figure to check, and the code inside it may carry digits.
+  const shippingText =
+    state.document.querySelector("[data-testid='breakdown-shipping']")?.textContent?.trim() ??
+    "";
+
   return {
     cartBadgeSubtotal: read("cart-badge-subtotal"),
     total: read("breakdown-total"),
     subtotal: read("breakdown-subtotal"),
     tax: read("breakdown-tax"),
+    shipping: shippingText.startsWith("FREE") ? null : parseMoney(shippingText),
   };
 });
 
@@ -518,10 +530,17 @@ const cartMoney = extract((state) => {
  * rendered text, so it also catches a clamp that holds in the engine but is
  * lost on the way to the screen.
  *
- * Subtotal and tax ride along with the total: each is clamped by the same
- * engine, a negative one is just as wrong, and naming them separately means a
- * violation says which figure broke instead of just "the cart".
+ * Subtotal, tax and shipping ride along with the total: each is clamped by the
+ * same engine, a negative one is just as wrong, and naming them separately
+ * means a violation says which figure broke instead of just "the cart".
  */
+export const cartMoneyNeverNegative = always(() => {
+  const { cartBadgeSubtotal, total, subtotal, tax, shipping } = cartMoney.current;
+  return [cartBadgeSubtotal, total, subtotal, tax, shipping].every(
+    (figure) => figure === null || figure >= 0,
+  );
+});
+
 /**
  * A harness self-check, not a claim about the shop.
  *
@@ -592,11 +611,4 @@ export const noEventListenerLeak = always(() => {
   return always(
     () => eventListeners.current - baseline <= LISTENER_GROWTH_LIMIT,
   ).within(LEAK_WINDOW_SECONDS, "seconds");
-});
-
-export const cartMoneyNeverNegative = always(() => {
-  const { cartBadgeSubtotal, total, subtotal, tax } = cartMoney.current;
-  return [cartBadgeSubtotal, total, subtotal, tax].every(
-    (figure) => figure === null || figure >= 0,
-  );
 });
